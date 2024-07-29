@@ -1,132 +1,132 @@
-import json
-import hashlib
-from enum import Enum
-from pathlib import Path
-from typing import Any, List, Dict, Type
-
-from pydantic import BaseModel, model_validator
-from huggingface_hub import hf_hub_download
-
-from bfcl.utils import CustomEnum
-
+from enum import Enum, auto
 
 class ModelType(str, Enum):
-    OSS = 'oss'
-    PROPRIETARY = 'proprietary'
+    OSS = "oss"
+    PROPRIETARY = "proprietary"
 
-class LeaderboardNonPythonCategory(str, CustomEnum):
-    JAVA = 'java'
-    JAVASCRIPT = 'javascript'
 
-class LeaderboardAstCategory(str, CustomEnum):
-    SIMPLE = 'simple'
-    RELEVANCE = 'relevance'
-    MULTIPLE_FUNCTION = 'multiple_function'
-    PARALLEL_FUNCTION = 'parallel_function'
-    PARALLEL_MULTIPLE_FUNCTION = 'parallel_multiple_function'
-    JAVA = LeaderboardNonPythonCategory.JAVA.value
-    JAVASCRIPT = LeaderboardNonPythonCategory.JAVASCRIPT.value
+class ModelStyle(str, Enum):
+    GORILLA = "gorilla"
+    OPENAI = "openai"
+    ANTHROPIC_FC = "claude"
+    ANTHROPIC_PROMPT = "claude"
+    MISTRAL = "mistral"
+    GOOGLE = "google"
+    COHERE = "cohere"
+    FIREWORK_AI = "firework_ai"
+    NEXUS = "nexus"
+    OSS_MODEL = "oss_model"
 
-class LeaderboardExecutableCategory(str, CustomEnum):
-    EXECUTABLE_SIMPLE = 'executable_simple'
-    EXECUTABLE_PARALLEL_FUNCTION = 'executable_parallel_function'
-    EXECUTABLE_MULTIPLE_FUNCTION = 'executable_multiple_function'
-    EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION = 'executable_parallel_multiple_function'
-    REST = 'rest'
-
-LeaderboardPythonCategory: Type[CustomEnum] = (
-    LeaderboardAstCategory
-    .add(LeaderboardExecutableCategory)
-    .subtract(LeaderboardNonPythonCategory)
-    .rename('LeaderboardPythonCategory')
-)
-
-LeaderboardCategory: Type[CustomEnum] = (
-    LeaderboardPythonCategory
-    .add(LeaderboardNonPythonCategory)
-    .rename('LeaderboardCategory')
-    .update(dict(SQL='sql', CHATABLE='chatable'))
-)
-
-class LeaderboardCategoryGroup(str, Enum):
-    AST = 'ast'
-    EXECUTABLE = 'executable'
-    NON_PYTHON = 'non_python'
-    PYTHON = 'python'
-    ALL = 'all'
-
-CATEGORY_GROUP_MAPPING = {
-    LeaderboardCategoryGroup.AST: LeaderboardAstCategory,
-    LeaderboardCategoryGroup.EXECUTABLE: LeaderboardExecutableCategory,
-    LeaderboardCategoryGroup.NON_PYTHON: LeaderboardNonPythonCategory,
-    LeaderboardCategoryGroup.PYTHON: LeaderboardPythonCategory,
-    LeaderboardCategoryGroup.ALL: LeaderboardCategory
-}
 
 class LeaderboardVersion(str, Enum):
-    V1 = 'v1'
+    V1 = "v1"
+    V2 = "v2"
 
 
-class Leaderboard(BaseModel):
-    test_group: LeaderboardCategoryGroup | None = None
-    test_categories: List[LeaderboardCategory] | None = None # type: ignore
-    version: LeaderboardVersion = LeaderboardVersion.V1
-    cache_dir: Path | str = '.cache'
+class TestCategory(str, Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.lower()
 
-    @model_validator(mode='before')
-    @classmethod
-    def check_either_field_provided(cls, values):
-        if values.get('test_group') is not None and values.get('test_categories') is not None:
-            raise ValueError("Provide either 'test_group' or 'test_categories', not both")
-        elif values.get('test_group') is None and values.get('test_categories') is None:
-            raise ValueError("Provide either 'test_group' or 'test_categories'")
-        return values
+    SIMPLE = auto()
+    JAVA = auto()
+    JAVASCRIPT = auto()
+    RELEVANCE = auto()
+    MULTIPLE_FUNCTION = auto()
+    PARALLEL_FUNCTION = auto()
+    PARALLEL_MULTIPLE_FUNCTION = auto()
+    EXECUTABLE_SIMPLE = auto()
+    EXECUTABLE_PARALLEL_FUNCTION = auto()
+    EXECUTABLE_MULTIPLE_FUNCTION = auto()
+    EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION = auto()
+    REST = auto()
 
-    def model_post_init(self, __context: Any) -> None:
-        if self.test_group:
-            self.test_categories = [cat for cat in CATEGORY_GROUP_MAPPING[self.test_group]]
-        self.cache_dir = Path.cwd() / self.cache_dir
+    def get_file_path(
+        self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
+    ) -> str:
+        return (
+            f"gorilla_openfunctions_{leaderboard_version.value}_test_{self.value}.json"
+        )
 
-    @property
-    def test_data_cache_dir(self) -> Path:
-        test_data_dir = self.cache_dir / f'gorilla_openfunctions_{self.version.value}_test_data'
-        test_data_dir.mkdir(exist_ok=True, parents=True)
-        return test_data_dir
 
-    def load_test_data(self) -> Dict[LeaderboardCategory, List[Dict]]: # type: ignore
-        data = {}
-        for test_category, infile_path in self._get_test_data():
-            data[test_category] = []
-            # We add `id` and `test_category` to each dataset sample
-            # Save the dataset in the cache with the updated keys for user reference
-            outfile_path = self.test_data_cache_dir / self.get_file_name(test_category)
-            if outfile_path.exists():
-                with open(outfile_path, 'r') as file:
-                    for line in file:
-                        data[test_category].append(json.loads(line))
-            else:
-                with open(infile_path, 'r') as infile, open(outfile_path, 'w') as outfile:
-                    for line in infile:
-                        item = json.loads(line)
-                        item['test_category'] = test_category.value
-                        item['id'] = self._generate_hash(json.dumps(item))
-                        data[test_category].append(item)
-                        outfile.write(json.dumps(item) + '\n')
-        return data
+class TestCategoryGroup(str, Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.lower()
 
-    def get_file_name(self, test_category: LeaderboardCategory) -> str: # type: ignore
-        return f'gorilla_openfunctions_{self.version.value}_test_{test_category.value}.json'
+    AST = auto()
+    EXECUTABLE = auto()
+    ALL = auto()
+    NON_PYTHON = auto()
+    PYTHON = auto()
+    PYTHON_AST = auto()
 
-    def _get_test_data(self):
-        for test_category in self.test_categories:
-            file_path = hf_hub_download(
-                repo_id='gorilla-llm/Berkeley-Function-Calling-Leaderboard',
-                filename=self.get_file_name(test_category),
-                repo_type='dataset',
-                cache_dir=self.cache_dir
-            )
-            yield test_category, file_path
 
-    def _generate_hash(self, input_str) -> str:
-        hash_object = hashlib.sha256(input_str.encode('utf-8'))
-        return hash_object.hexdigest()
+TEST_CATEGORY_GROUP_MAPPING = {
+    TestCategoryGroup.AST: [
+        TestCategory.SIMPLE,
+        TestCategory.MULTIPLE_FUNCTION,
+        TestCategory.PARALLEL_FUNCTION,
+        TestCategory.PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.JAVA,
+        TestCategory.JAVASCRIPT,
+        TestCategory.RELEVANCE,
+    ],
+    TestCategoryGroup.EXECUTABLE: [
+        TestCategory.EXECUTABLE_SIMPLE,
+        TestCategory.EXECUTABLE_MULTIPLE_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.REST,
+    ],
+    TestCategoryGroup.ALL: [
+        TestCategory.SIMPLE,
+        TestCategory.MULTIPLE_FUNCTION,
+        TestCategory.PARALLEL_FUNCTION,
+        TestCategory.PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.JAVA,
+        TestCategory.JAVASCRIPT,
+        TestCategory.RELEVANCE,
+        TestCategory.EXECUTABLE_SIMPLE,
+        TestCategory.EXECUTABLE_MULTIPLE_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.REST,
+    ],
+    TestCategoryGroup.NON_PYTHON: [
+        TestCategory.JAVA,
+        TestCategory.JAVASCRIPT,
+    ],
+    TestCategoryGroup.PYTHON: [
+        TestCategory.SIMPLE,
+        TestCategory.MULTIPLE_FUNCTION,
+        TestCategory.PARALLEL_FUNCTION,
+        TestCategory.PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.RELEVANCE,
+        TestCategory.EXECUTABLE_SIMPLE,
+        TestCategory.EXECUTABLE_MULTIPLE_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_FUNCTION,
+        TestCategory.EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.REST,
+    ],
+    TestCategoryGroup.PYTHON_AST: [
+        TestCategory.SIMPLE,
+        TestCategory.MULTIPLE_FUNCTION,
+        TestCategory.PARALLEL_FUNCTION,
+        TestCategory.PARALLEL_MULTIPLE_FUNCTION,
+        TestCategory.RELEVANCE,
+    ],
+}
+
+
+# class Leaderboard(BaseModel):
+#     test_group: TestCategoryGroup | None = None
+#     test_categories: List[LeaderboardCategory] | None = None # type: ignore
+#     version: LeaderboardVersion = LeaderboardVersion.V1
+
+#     @model_validator(mode='before')
+#     @classmethod
+#     def check_either_field_provided(cls, values):
+#         if values.get('test_group') is not None and values.get('test_categories') is not None:
+#             raise ValueError("Provide either 'test_group' or 'test_categories', not both")
+#         elif values.get('test_group') is None and values.get('test_categories') is None:
+#             raise ValueError("Provide either 'test_group' or 'test_categories'")
+#         return values
