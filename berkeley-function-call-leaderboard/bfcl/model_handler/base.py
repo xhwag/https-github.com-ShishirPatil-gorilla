@@ -1,31 +1,19 @@
-import json
-from typing import List, Dict
-from pathlib import Path
-from enum import Enum
+import os
+from typing import Union, List, Dict
 from abc import ABC, abstractmethod
-
-
-class ModelStyle(str, Enum):
-    GORILLA = "gorilla"
-    OPENAI = "openai"
-    ANTHROPIC_FC = "claude"
-    ANTHROPIC_PROMPT = "claude"
-    MISTRAL = "mistral"
-    GOOGLE = "google"
-    COHERE = "cohere"
-    FIREWORK_AI = "firework_ai"
-    NEXUS = "nexus"
-    OSS_MODEL = "oss_model"
+from bfcl.constants import *
+from bfcl.utils import load_json_file, write_single_dict_to_file
+from bfcl.types import TestCategory
 
 
 class BaseHandler(ABC):
     model_style: str
 
     def __init__(
-        self, 
+        self,
         model_name: str,
-        temperature: float = 0.7, 
-        top_p: int = 1, 
+        temperature: float = 0.7,
+        top_p: int = 1,
         max_tokens: int = 1000,
     ) -> None:
         self.model_name = model_name
@@ -33,10 +21,9 @@ class BaseHandler(ABC):
         self.top_p = top_p
         self.max_tokens = max_tokens
 
-        self.result_dir = Path.cwd() / 'result'
-        self.result_dir.mkdir(exist_ok=True)
-        self.model_dir = self.result_dir / self.model_name.replace('/', '--')
-        self.model_dir.mkdir(exist_ok=True)
+        self.model_name_underscore = self.model_name.replace("/", "_")
+        self.result_dir = os.path.join(RESULT_FILE_PATH, self.model_name_underscore)
+        self.score_dir = os.path.join(SCORE_FILE_PATH, self.model_name_underscore)
 
     @classmethod
     @abstractmethod
@@ -58,20 +45,44 @@ class BaseHandler(ABC):
         """Takes raw model output and converts it to the standard execute checker input."""
         pass
 
-    def write(self, responses: List[Dict], file_name: str) -> None:
+    def write(self, result: Union[Dict, List[Dict]]) -> None:
         """Write the model responses to the file."""
 
-        file_path = self.model_dir / file_name
-        with open(file_path, 'w') as file:
-            for response in responses:
-                file.write(json.dumps(response) + '\n')
-        print(f'Saved model responses at "{file_path}".')
+        # When writing only one result
+        if isinstance(result, dict):
+            result = [result]
 
-    def load_model_responses(self, file_name: str) -> List[Dict] | None:
-        """Load the model responses if available."""
+        for entry in result:
+            test_category = entry["id"].rsplit("_", 1)[0]
+            file_to_write = f"gorilla_openfunctions_v1_test_{test_category}_result.json"
+            write_single_dict_to_file(
+                entry, file_to_write, subdir=self.result_dir, appendMode=True
+            )
 
-        file_path = self.model_dir / file_name
-        if file_path.exists():
-            with open(file_path, 'r') as f:
-                result = [json.loads(line) for line in f]
-            return result
+        print(f'Saved model responses at "{self.result_dir}".')
+
+    def load_result_file(self, test_category: TestCategory) -> List[Dict]:
+        """Load the model responses from the result file. Returns an empty list if the file is not found."""
+
+        if not self.result_dir.exists():
+            return []
+
+        file_path = os.path.join(self.result_dir, test_category.get_file_path())
+
+        if not os.path.exists(file_path):
+            return []
+
+        return load_json_file(file_path)
+
+    def load_score_file(self, test_category: TestCategory) -> List[Dict]:
+        """Load the model score from the score file. Returns an empty list if the file is not found."""
+
+        if not self.score_dir.exists():
+            return []
+
+        file_path = os.path.join(self.score_dir, test_category.get_file_path())
+
+        if not os.path.exists(file_path):
+            return []
+
+        return load_json_file(file_path)
