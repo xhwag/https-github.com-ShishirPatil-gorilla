@@ -1,4 +1,8 @@
+import os
 from enum import Enum, auto
+from bfcl.constants import DATASET_PATH, POSSIBLE_ANSWER_PATH
+from bfcl.utils import load_json_file
+
 
 class ModelType(str, Enum):
     OSS = "oss"
@@ -40,11 +44,33 @@ class TestCategory(str, Enum):
     EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION = auto()
     REST = auto()
 
-    def get_file_path(
+    def get_test_file_path(
         self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
     ) -> str:
         return (
             f"gorilla_openfunctions_{leaderboard_version.value}_test_{self.value}.json"
+        )
+
+    def get_possible_answer_file_path(
+        self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
+    ) -> str:
+        return f"gorilla_openfunctions_{leaderboard_version.value}_test_{self.value}_possible_answer.json"
+
+    def load_test_data(
+        self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
+    ) -> list:
+        return load_json_file(
+            os.path.join(DATASET_PATH, self.get_test_file_path(leaderboard_version))
+        )
+
+    def load_possible_answer_data(
+        self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
+    ) -> list:
+        return load_json_file(
+            os.path.join(
+                POSSIBLE_ANSWER_PATH,
+                self.get_possible_answer_file_path(leaderboard_version),
+            )
         )
 
 
@@ -115,18 +141,3 @@ TEST_CATEGORY_GROUP_MAPPING = {
         TestCategory.RELEVANCE,
     ],
 }
-
-
-# class Leaderboard(BaseModel):
-#     test_group: TestCategoryGroup | None = None
-#     test_categories: List[LeaderboardCategory] | None = None # type: ignore
-#     version: LeaderboardVersion = LeaderboardVersion.V1
-
-#     @model_validator(mode='before')
-#     @classmethod
-#     def check_either_field_provided(cls, values):
-#         if values.get('test_group') is not None and values.get('test_categories') is not None:
-#             raise ValueError("Provide either 'test_group' or 'test_categories', not both")
-#         elif values.get('test_group') is None and values.get('test_categories') is None:
-#             raise ValueError("Provide either 'test_group' or 'test_categories'")
-#         return values
