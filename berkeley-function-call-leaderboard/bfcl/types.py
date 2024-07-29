@@ -27,6 +27,25 @@ class LeaderboardVersion(str, Enum):
     V2 = "v2"
 
 
+class TestLanguage(str, Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.lower()
+
+    PYTHON = auto()
+    JAVA = auto()
+    JAVASCRIPT = auto()
+
+
+class EvaluationMethod(str, Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.lower()
+
+    AST = auto()
+    EXECUTABLE = auto()
+    RELEVANCE = auto()
+    # IRRELEVANCE = auto()
+
+
 class TestCategory(str, Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name.lower()
@@ -39,10 +58,40 @@ class TestCategory(str, Enum):
     PARALLEL_FUNCTION = auto()
     PARALLEL_MULTIPLE_FUNCTION = auto()
     EXECUTABLE_SIMPLE = auto()
-    EXECUTABLE_PARALLEL_FUNCTION = auto()
     EXECUTABLE_MULTIPLE_FUNCTION = auto()
+    EXECUTABLE_PARALLEL_FUNCTION = auto()
     EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION = auto()
     REST = auto()
+
+
+    @property
+    def evaluation_method(self):
+        if self in [
+            TestCategory.EXECUTABLE_SIMPLE,
+            TestCategory.EXECUTABLE_MULTIPLE_FUNCTION,
+            TestCategory.EXECUTABLE_PARALLEL_FUNCTION,
+            TestCategory.EXECUTABLE_PARALLEL_MULTIPLE_FUNCTION,
+        ]:
+            return EvaluationMethod.EXECUTABLE
+        elif self in [
+            TestCategory.RELEVANCE,
+        ]:
+            return EvaluationMethod.RELEVANCE
+        else:
+            return EvaluationMethod.AST
+
+    @property
+    def test_language(self):
+        if self in [
+            TestCategory.JAVA,
+        ]:
+            return TestLanguage.JAVA
+        elif self in [
+            TestCategory.JAVASCRIPT,
+        ]:
+            return TestLanguage.JAVASCRIPT
+        else:
+            return TestLanguage.PYTHON
 
     def get_test_file_path(
         self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
@@ -72,6 +121,16 @@ class TestCategory(str, Enum):
                 self.get_possible_answer_file_path(leaderboard_version),
             )
         )
+
+    @classmethod
+    def sort_categories(cls, categories):
+        def sort_key(category):
+            if "executable" in category.value:
+                return (0, category.value)  # Executable categories appear first
+            else:
+                return (1, category.value)  # Non-executable categories appear second
+
+        return sorted(categories, key=sort_key)
 
 
 class TestCategoryGroup(str, Enum):
