@@ -1,7 +1,6 @@
 import re
 from typing import List, Dict, Union
-
-from bfcl.model_handler.constants import JAVA_TYPE_CONVERSION
+from bfcl.eval_client.checker.checker_constents import JAVA_TYPE_CONVERSION
 
 
 def java_type_converter(value, expected_type, nested_type=None):
