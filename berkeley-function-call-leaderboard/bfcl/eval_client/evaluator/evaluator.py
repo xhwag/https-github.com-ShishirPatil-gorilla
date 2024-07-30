@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from bfcl.types import TestCategory
-from bfcl.utils import write_list_of_dicts_to_file
+from bfcl.utils.utils import write_list_of_dicts_to_file
 from bfcl.eval_client.leaderboard import Leaderboard
 from bfcl.model_handler.base import BaseHandler
 
@@ -15,7 +15,7 @@ class FailedResult(BaseModel):
     error_type: str
     error_message: str
     question: str
-    func_doc: Optional[List[Dict]] = None
+    func_doc: List[Dict]
     model_response_raw: str
     model_response_decoded: Optional[Any] = None
     possible_answer: Optional[Any] = None
@@ -34,7 +34,7 @@ class Evaluator(ABC):
 
     def pre_run_process(self, handler: BaseHandler):
         self.handler = handler
-        self.modal_name = handler.model_name
+        self.model_name = handler.model_name
         self.model_response = self.handler.load_result_file(self.test_category)
         self.failure_record = []
         self.correct_count = 0
@@ -43,10 +43,10 @@ class Evaluator(ABC):
             len(self.model_response)
             == len(self.test_data)
             == len(self.possible_answer_data)
-        ), f"The length of the model result ({len(self.model_response)}) does not match the length of the prompt ({len(self.test_data)}) or possible answer ({len(self.possible_answer_data)}). Please check the input files for completeness. Model: {self.modal_name}, Test Category: {self.test_category}"
+        ), f"The length of the model result ({len(self.model_response)}) does not match the length of the prompt ({len(self.test_data)}) or possible answer ({len(self.possible_answer_data)}). Please check the input files for completeness. Model: {self.model_name}, Test Category: {self.test_category}"
 
         self.leaderboard.record_cost_latency(
-            self.modal_name, self.test_category, self.model_response
+            self.model_name, self.test_category, self.model_response
         )
 
     @abstractmethod
