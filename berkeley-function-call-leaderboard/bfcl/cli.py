@@ -10,13 +10,14 @@ from bfcl.types import (
     TEST_CATEGORY_GROUP_MAPPING,
     LeaderboardVersion,
 )
-
+from bfcl.utils.apply_function_credential import apply_api_credential
 load_dotenv()
 
 
 def main():
     args = _get_args()
-
+    apply_api_credential()
+    
     if args.command == "llm_generation":
         collect_model_responses(args)
 

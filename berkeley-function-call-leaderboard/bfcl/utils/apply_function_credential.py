@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 
 from bfcl.utils.utils import load_json_file, write_list_of_dicts_to_file
+from bfcl.constants import DATASET_PATH, POSSIBLE_ANSWER_PATH, API_STATUS_CHECK_DATA_PATH
 
 load_dotenv()
 
@@ -56,10 +57,12 @@ def _process_file(input_file_path, output_file_path):
     print(f"All placeholders have been replaced for {input_file_path} 🦍.")
 
 
-def _process_dir(input_dir, output_dir):
+def _process_dir(input_dir, output_dir=None):
     # This function does support nested directories
     print(f"Input directory: {input_dir}")
-
+    if output_dir is None:
+        output_dir = input_dir
+        
     # Get a list of all entries in the folder
     entries = os.scandir(input_dir)
 
@@ -75,12 +78,7 @@ def _process_dir(input_dir, output_dir):
         _process_dir(subdir, subdir)
 
 
-def apply_credential(input_path, output_path=None):
-
-    if output_path is None:
-        output_path = input_path
-
-    if os.path.isdir(input_path):
-        _process_dir(input_path, output_path)
-    else:
-        _process_file(input_path, output_path)
+def apply_api_credential():
+    _process_dir(DATASET_PATH)
+    _process_dir(POSSIBLE_ANSWER_PATH)
+    _process_dir(API_STATUS_CHECK_DATA_PATH)
