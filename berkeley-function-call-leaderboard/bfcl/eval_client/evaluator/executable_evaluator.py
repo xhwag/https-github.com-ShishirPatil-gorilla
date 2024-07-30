@@ -4,15 +4,18 @@ from evaluator import Evaluator
 from tqdm import tqdm
 from utils import is_rest_format_output, is_executable_format_output
 from bfcl.eval_client.checker.types import ExecutableCheckerResult
+from bfcl.eval_client.leaderboard import Leaderboard
+from bfcl.eval_client.checker.executable.exec_python_functions import *
+
 
 class ExecutableEvaluator(Evaluator):
+    
+    def __init__(self, test_category: TestCategory, leaderboard: Leaderboard):
+        super().__init__(test_category, leaderboard)
+        if self.test_category != TestCategory.REST:
+            self.get_real_time_exec_result()
 
     def run(self):
-        # if self.test_category == TestCategory.REST:
-        #     self._run_rest()
-        # else:
-        #     self._run_non_rest()
-
         for i in tqdm(range(len(self.model_response)), desc="Running tests"):
             entry_id = self.test_data[i]["id"]
             model_response_item_raw = self.model_response[i]["result"]
@@ -61,7 +64,7 @@ class ExecutableEvaluator(Evaluator):
                     model_response_item_decoded,
                     possible_answer_item,
                     self.test_category,
-                    self.modal_name,
+                    self.model_name,
                 )
                 checker_result: ExecutableCheckerResult = checker.run()
 
@@ -91,13 +94,13 @@ class ExecutableEvaluator(Evaluator):
                     model_response_item_decoded,
                     possible_answer_item,
                     self.test_category,
-                    self.modal_name,
+                    self.model_name,
                 )
                 checker_result: ExecutableCheckerResult = checker.run()
                 # checker_result = exec_checker(decoded_result, prompt_item, test_category)
 
             if checker_result.is_valid:
-                correct_count += 1
+                self.correct_count += 1
             else:
                 self.failure_record.append(
                     FailedResult(
@@ -114,3 +117,14 @@ class ExecutableEvaluator(Evaluator):
                         model_executed_output=checker_result.execution_output,
                     )
                 )
+
+    def get_real_time_exec_result(self) -> None:
+        self.expected_exec_result = []
+        for possible_answer_entry in tqdm(
+            self.possible_answer_data, desc="Getting Executable Expected Output"
+        ):
+            execution_result = []
+            for ground_truth_entry in possible_answer_entry["ground_truth"]:
+                execution_result.append(eval(ground_truth_entry))
+                
+            self.expected_exec_result.append(execution_result)
