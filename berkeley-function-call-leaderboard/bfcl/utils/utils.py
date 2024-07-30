@@ -7,7 +7,7 @@ from bfcl.model_handler.proprietary_model import PRPPRIETARY_MODEL_TO_HANDLER_CL
 MODEL_TO_HANDLER_CLS = OSS_MODEL_TO_HANDLER_CLS.update(PRPPRIETARY_MODEL_TO_HANDLER_CLS)
 
 
-def load_model_handler(model_name: str) -> BaseHandler:
+def get_model_handler(model_name: str) -> BaseHandler:
     handler_cls = MODEL_TO_HANDLER_CLS.get(model_name)
     assert (
         handler_cls

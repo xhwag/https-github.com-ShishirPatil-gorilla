@@ -1,11 +1,8 @@
-import re
-import ast
-import builtins
-import json
-
-from bfcl.model_handler import parser
-from bfcl.model_handler.base import ModelStyle
-from bfcl.model_handler import constants
+import re, ast, builtins, ast, json
+from model_handler.model_style import ModelStyle
+from model_handler.java_parser import parse_java_function_call
+from model_handler.js_parser import parse_javascript_function_call
+from model_handler.constant import GORILLA_TO_OPENAPI, USE_COHERE_OPTIMIZATION
 
 
 def _cast_to_openai_type(properties, mapping, test_category):
@@ -14,7 +11,7 @@ def _cast_to_openai_type(properties, mapping, test_category):
             properties[key]["type"] = "string"
         else:
             var_type = value["type"]
-            if mapping == constants.GORILLA_TO_OPENAPI and var_type == "float":
+            if mapping == GORILLA_TO_OPENAPI and var_type == "float":
                 properties[key]["format"] = "float"
                 properties[key]["description"] += " This is a float type value."
             if var_type in mapping:
@@ -56,48 +53,30 @@ def _cast_to_openai_type(properties, mapping, test_category):
 
 
 def convert_to_tool(
-    functions, mapping, model_style, test_category, stringify_parameters=False
+    functions, mapping, model_style, test_category
 ):
     oai_tool = []
     for item in functions:
-        if "." in item["name"] and model_style in (
-            ModelStyle.OPENAI,
-            ModelStyle.MISTRAL,
-            ModelStyle.GOOGLE,
-            ModelStyle.ANTHROPIC_FC,
-            ModelStyle.COHERE,
-            ModelStyle.OSS_MODEL,
+        if "." in item["name"] and (
+            model_style == ModelStyle.OpenAI
+            or model_style == ModelStyle.Mistral
+            or model_style == ModelStyle.Google
+            or model_style == ModelStyle.OSSMODEL
+            or model_style == ModelStyle.Anthropic_FC
+            or model_style == ModelStyle.COHERE
         ):
             # OAI does not support "." in the function name so we replace it with "_". ^[a-zA-Z0-9_-]{1,64}$ is the regex for the name.
             item["name"] = re.sub(r"\.", "_", item["name"])
+            
         item["parameters"]["type"] = "object"
         item["parameters"]["properties"] = _cast_to_openai_type(
             item["parameters"]["properties"], mapping, test_category
         )
-        # When Java and Javascript, for OpenAPI compatible models, let it become string.
-        if stringify_parameters and model_style in (
-            ModelStyle.OPENAI,
-            ModelStyle.MISTRAL,
-            ModelStyle.GOOGLE,
-            ModelStyle.ANTHROPIC_FC,
-            ModelStyle.ANTHROPIC_PROMPT,
-            ModelStyle.FIREWORK_AI,
-            ModelStyle.COHERE,
-            ModelStyle.OSS_MODEL,
-        ):
-            properties = item["parameters"]["properties"]
-            if test_category == "java":
-                for key, value in properties.items():
-                    if value["type"] in constants.JAVA_TYPE_CONVERSION:
-                        properties[key]["type"] = "string"
-            elif test_category == "javascript":
-                for key, value in properties.items():
-                    if value["type"] in constants.JS_TYPE_CONVERSION:
-                        properties[key]["type"] = "string"
-        if model_style == ModelStyle.ANTHROPIC_FC:
+
+        if model_style == ModelStyle.Anthropic_FC:
             item["input_schema"] = item["parameters"]
             del item["parameters"]
-        if model_style == ModelStyle.GOOGLE:
+        if model_style == ModelStyle.Google:
             # Remove fields that are not supported by Gemini today.
             for params in item["parameters"]["properties"].values():
                 if "default" in params:
@@ -111,7 +90,7 @@ def convert_to_tool(
                     params["description"] += "The additional properties:" +str(params["additionalProperties"])
                     del params["additionalProperties"]
         if model_style == ModelStyle.COHERE:
-            if constants.USE_COHERE_OPTIMIZATION:
+            if USE_COHERE_OPTIMIZATION:
                 if "required" not in item["parameters"]:
                     item["parameters"]["required"] = []
                 for param_name, params in item["parameters"]["properties"].items():
@@ -179,11 +158,11 @@ def convert_to_tool(
                     if "properties" in params:
                         params["description"] += " Dictionary properties: " + str(params["properties"])
                         del params["properties"]
-        if model_style in (
-            ModelStyle.ANTHROPIC_PROMPT,
-            ModelStyle.GOOGLE,
-            ModelStyle.OSS_MODEL,
-        ):
+        if model_style in [
+            ModelStyle.Anthropic_Prompt,
+            ModelStyle.Google,
+            ModelStyle.OSSMODEL,
+        ]:
             oai_tool.append(item)
         elif model_style == ModelStyle.COHERE:
             parameter = item["parameters"]["properties"]
@@ -202,11 +181,11 @@ def convert_to_tool(
                     "parameter_definitions": parameter_definitions,
                 }
             )
-        elif model_style in (
-            ModelStyle.OPENAI,
-            ModelStyle.MISTRAL,
+        elif model_style in [
+            ModelStyle.OpenAI,
+            ModelStyle.Mistral,
             ModelStyle.FIREWORK_AI,
-        ):
+        ]:
             oai_tool.append({"type": "function", "function": item})
     return oai_tool
 
@@ -248,20 +227,20 @@ def convert_value(value, type_str):
         return value
 
 
-def ast_parse(input_str, language="python"):
-    if language.lower() == "python":
+def ast_parse(input_str, language="Python"):
+    if language == "Python":
         parsed = ast.parse(input_str, mode="eval")
         extracted = []
         for elem in parsed.body.elts:
             assert isinstance(elem, ast.Call)
             extracted.append(resolve_ast_by_type(elem))
         return extracted
-    elif language.lower() == "java":
-        return parser.parse_java_function_call(
+    elif language == "Java":
+        return parse_java_function_call(
             input_str[1:-1]
         )  # Remove the [ and ] from the string
-    elif language.lower() == "javascript":
-        return parser.parse_javascript_function_call(input_str[1:-1])
+    elif language == "JavaScript":
+        return parse_javascript_function_call(input_str[1:-1])
     else:
         raise NotImplementedError(f"Unsupported language: {language}")
 
@@ -309,7 +288,7 @@ def resolve_ast_by_type(value):
     elif isinstance(value, ast.Name):
         output = value.id
     elif isinstance(value, ast.Call):
-        if len(value.keywords) == 0:
+        if len(value.keywords)==0:
             output = ast.unparse(value)
         else:
             output = resolve_ast_call(value)
@@ -333,43 +312,63 @@ def augment_prompt_by_languge(prompt, test_category):
     if test_category == "java":
         prompt = prompt + "\n Note that the provided function is in Java 8 SDK syntax."
     elif test_category == "javascript":
-        prompt = prompt + "\n Note that the provided function is in JavaScript."
+        prompt = prompt + "\n Note that the provided function is in JavaScript syntax."
     else:
-        prompt = prompt + "\n Note that the provided function is in Python."
+        prompt = prompt + "\n Note that the provided function is in Python 3 syntax."
     return prompt
 
 
-def language_specific_pre_processing(functions, test_category, string_param):
-    if isinstance(functions, (dict, str)):
-        functions = [functions]
-    if len(functions) == 0:
-       return functions
-    for item in functions:
+def language_specific_pre_processing(function, test_category):
+    if type(function) is dict:
+        function = [function]
+    if len(function) == 0:
+       return function
+    for item in function:
         properties = item["parameters"]["properties"]
         if test_category == "java":
             for key, value in properties.items():
-                if value["type"] == "Any" or value["type"] == "any":
-                    properties[key][
-                        "description"
-                    ] += "This parameter can be of any type of Java object."
+                if value["type"] == "any":
                     properties[key]["description"] += (
-                        "This is Java" + value["type"] + " in string representation."
+                        " This parameter can be of any type of Java object in string representation."
                     )
+                else:
+                    value["description"] += (
+                        f" This is Java {value['type']} type parameter in string representation."
+                    )
+                if value["type"] == "ArrayList" or value["type"] == "Array":
+                    value["description"] += (
+                        f" The list elements are of type {value['items']['type']}; they are not in string representation."
+                    )
+                    del value["items"]
+                    
+                value["type"] = "string"
+                
         elif test_category == "javascript":
             for key, value in properties.items():
-                if value["type"] == "Any" or value["type"] == "any":
-                    properties[key][
-                        "description"
-                    ] += "This parameter can be of any type of Javascript object."
-                else:
-                    if "description" not in properties[key]:
-                        properties[key]["description"] = ""
+                if value["type"] == "any":
                     properties[key]["description"] += (
-                        "This is Javascript "
-                        + value["type"]
-                        + " in string representation."
+                        " This parameter can be of any type of JavaScript object in string representation."
                     )
-        return functions
+                else:
+                    value["description"] += (
+                        f" This is JavaScript {value['type']} type parameter in string representation."
+                    )
+                if value["type"] == "array":
+                    value["description"] += (
+                        f" The list elements are of type {value['items']['type']}; they are not in string representation."
+                    )
+                    del value["items"]
+                
+                if value["type"] == "dict":
+                    if "properties" in value:    # not every dict has properties
+                        value["description"] += (
+                            f" The dictionary entries have the following schema; they are not in string representation. {json.dumps(value['properties'])}"
+                        )
+                        del value["properties"]
+
+                value["type"] = "string"
+                
+    return function
 
 
 def construct_tool_use_system_prompt(tools):
@@ -444,7 +443,7 @@ def construct_format_parameters_prompt(parameters):
     return constructed_prompt
 
 
-def function_calls_valid_format_and_invoke_extraction(last_completion):
+def _function_calls_valid_format_and_invoke_extraction(last_completion):
     """Check if the function call follows a valid format and extract the attempted function calls if so. Does not check if the tools actually exist or if they are called with the requisite params."""
 
     # Check if there are any of the relevant XML tags present that would indicate an attempted function call.
@@ -560,7 +559,7 @@ def function_calls_valid_format_and_invoke_extraction(last_completion):
     }
 
 
-def convert_value(value, type_str):
+def _convert_value(value, type_str):
     """Convert a string value into its appropriate Python data type based on the provided type string.
 
     Arg:
