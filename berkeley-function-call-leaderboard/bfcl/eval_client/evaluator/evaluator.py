@@ -46,7 +46,7 @@ class Evaluator(ABC):
         ), f"The length of the model result ({len(self.model_response)}) does not match the length of the prompt ({len(self.test_data)}) or possible answer ({len(self.possible_answer_data)}). Please check the input files for completeness. Model: {self.model_name}, Test Category: {self.test_category}"
 
         self.leaderboard.record_cost_latency(
-            self.model_name, self.test_category, self.model_response
+            self.model_name, self.model_response
         )
 
     @abstractmethod

@@ -2,10 +2,10 @@ from typing import List, Dict, Tuple
 
 from bfcl.eval_client.checker.types import AstCheckerResult
 from bfcl.types import TestCategory, TestLanguage
-from bfcl.eval_client.checker.ast.utils import *
+from bfcl.utils.ast_checker_utils import *
 from bfcl.eval_client.checker.ast.type_converter.java import java_type_converter
 from bfcl.eval_client.checker.ast.type_converter.javascript import js_type_converter
-from bfcl.eval_client.checker.checker_constents import (
+from bfcl.eval_client.checker.ast.ast_checker_constants import (
     PYTHON_NESTED_TYPE_CHECK_LIST,
     JAVA_TYPE_CONVERSION,
     JS_TYPE_CONVERSION,

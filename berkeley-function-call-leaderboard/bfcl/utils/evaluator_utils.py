@@ -78,17 +78,3 @@ def calculate_unweighted_accuracy(accuracy_dict_list):
 
     return {"accuracy": total_accuracy / len(accuracy_dict_list), "total_count": 0}
 
-
-def record_result(leaderboard_table, model_name, test_category, accuracy, total_count):
-    if model_name not in leaderboard_table:
-        leaderboard_table[model_name] = {}
-    leaderboard_table[model_name][test_category] = {
-        "accuracy": accuracy,
-        "total_count": total_count,
-    }
-
-
-
-
-
-

@@ -1,5 +1,5 @@
 from evaluator import FailedResult
-from evaluator.utils import is_function_calling_format_output
+from bfcl.utils.evaluator_utils import is_function_calling_format_output
 from bfcl.eval_client.checker.ast.ast_checker import AstChecker
 from evaluator import Evaluator
 
@@ -61,12 +61,12 @@ class ASTEvaluator(Evaluator):
                 model_response_item_decoded,
                 possible_answer_item,
                 self.test_category,
-                self.modal_name,
+                self.model_name,
             )
             checker_result = checker.run()
 
             if checker_result["valid"]:
-                correct_count += 1
+                self.correct_count += 1
             else:
                 self.failure_record.append(
                     FailedResult(
