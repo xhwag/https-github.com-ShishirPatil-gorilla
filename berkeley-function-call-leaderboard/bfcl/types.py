@@ -42,7 +42,7 @@ class EvaluationMethod(str, Enum):
 
     AST = auto()
     EXECUTABLE = auto()
-    RELEVANCE = auto()
+    IRRELEVANCE = auto()
     # IRRELEVANCE = auto()
 
 
@@ -76,7 +76,7 @@ class TestCategory(str, Enum):
         elif self in [
             TestCategory.RELEVANCE,
         ]:
-            return EvaluationMethod.RELEVANCE
+            return EvaluationMethod.IRRELEVANCE
         else:
             return EvaluationMethod.AST
 
@@ -105,6 +105,11 @@ class TestCategory(str, Enum):
     ) -> str:
         return f"gorilla_openfunctions_{leaderboard_version.value}_test_{self.value}_possible_answer.json"
 
+    def get_score_file_path(
+        self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
+    ) -> str:
+        return f"gorilla_openfunctions_{leaderboard_version.value}_test_{self.value}_score.json"
+    
     def load_test_data(
         self, leaderboard_version: LeaderboardVersion = LeaderboardVersion.V1
     ) -> list:

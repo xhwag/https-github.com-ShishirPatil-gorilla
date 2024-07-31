@@ -11,6 +11,7 @@ from bfcl.types import (
     LeaderboardVersion,
 )
 from bfcl.utils.apply_function_credential import apply_api_credential
+
 load_dotenv()
 
 
@@ -90,9 +91,6 @@ def _add_llm_generation_args(subparsers, common_parser):
     )
     benchmark_parser.add_argument(
         "--max-tokens", type=int, default=1200, help="Max tokens (default: 1200)"
-    )
-    benchmark_parser.add_argument(
-        "--timeout", default=60, type=int, help="Timeout (default: 60)"
     )
     benchmark_parser.add_argument(
         "--num-gpus",
