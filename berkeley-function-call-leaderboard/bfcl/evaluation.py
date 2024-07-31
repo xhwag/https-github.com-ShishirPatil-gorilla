@@ -5,10 +5,11 @@ from typing import List
 from bfcl.eval_client.leaderboard import Leaderboard
 from bfcl.model_handler.base import BaseHandler
 from bfcl.constants import RESULT_FILE_DIR
-from bfcl.utils import get_model_handler
+from bfcl.utils.utils import get_model_handler
 from bfcl.eval_client.checker.executable.api_status_check import APIStatusChecker
 from bfcl.types import TestCategory, EvaluationMethod
 from bfcl.eval_client.evaluator.ast_evaluator import ASTEvaluator
+from bfcl.eval_client.evaluator.executable_evaluator import ExecutableEvaluator
 from bfcl.eval_client.evaluator.relevance_evaluator import IrrelevanceEvaluator
 
 
@@ -44,7 +45,7 @@ class EvalClient:
             if test_category.evaluation_method == EvaluationMethod.AST:
                 evaluator = ASTEvaluator(test_category, self.leaderboard)
             elif test_category.evaluation_method == EvaluationMethod.EXECUTABLE:
-                evaluator = ASTEvaluator(test_category, self.leaderboard)
+                evaluator = ExecutableEvaluator(test_category, self.leaderboard)
             elif test_category.evaluation_method == EvaluationMethod.IRRELEVANCE:
                 evaluator = IrrelevanceEvaluator(test_category, self.leaderboard)
             else:
@@ -61,4 +62,5 @@ class EvalClient:
             self.api_status_checker.display_api_status(display_success=False)
 
     def get_results(self):
-        self.leaderboard.get_results()
+        pass
+        self.leaderboard.generate_leaderboard_csv()
