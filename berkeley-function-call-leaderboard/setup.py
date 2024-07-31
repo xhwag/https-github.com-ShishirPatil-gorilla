@@ -24,8 +24,8 @@ setup(
     license="Apache 2.0",
     packages=find_packages(include=["bfcl*"]),
     install_requires=[
-        "requests==2.32.3",
-        "tqdm==4.66.4",
+        "requests",
+        "tqdm",
         "numpy==1.26.4",
         "pandas",
         "huggingface_hub",
