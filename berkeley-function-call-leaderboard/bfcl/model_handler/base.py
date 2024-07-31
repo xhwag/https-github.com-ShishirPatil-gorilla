@@ -2,7 +2,7 @@ import os
 from typing import Union, List, Dict
 from abc import ABC, abstractmethod
 from bfcl.constants import *
-from bfcl.utils import load_json_file, write_single_dict_to_file
+from bfcl.utils.utils import load_json_file, write_single_dict_to_file
 from bfcl.types import TestCategory
 
 
@@ -22,8 +22,8 @@ class BaseHandler(ABC):
         self.max_tokens = max_tokens
 
         self.model_name_underscore = self.model_name.replace("/", "_")
-        self.result_dir = os.path.join(RESULT_FILE_PATH, self.model_name_underscore)
-        self.score_dir = os.path.join(SCORE_FILE_PATH, self.model_name_underscore)
+        self.result_dir = os.path.join(RESULT_FILE_DIR, self.model_name_underscore)
+        self.score_dir = os.path.join(SCORE_FILE_DIR, self.model_name_underscore)
 
     @classmethod
     @abstractmethod
@@ -45,13 +45,14 @@ class BaseHandler(ABC):
         """Takes raw model output and converts it to the standard execute checker input."""
         pass
 
-    def write(self, result: Union[Dict, List[Dict]]) -> None:
+    def write_result(self, result: Union[Dict, List[Dict]]) -> None:
         """Write the model responses to the file."""
 
         # When writing only one result
         if isinstance(result, dict):
             result = [result]
 
+        # FIXME better way to get file path 
         for entry in result:
             test_category = entry["id"].rsplit("_", 1)[0]
             file_to_write = f"gorilla_openfunctions_v1_test_{test_category}_result.json"
