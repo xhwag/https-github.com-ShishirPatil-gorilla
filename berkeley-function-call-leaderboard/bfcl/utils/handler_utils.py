@@ -1,11 +1,11 @@
 import re, ast, builtins, ast, json
-from model_handler.model_style import ModelStyle
-from model_handler.java_parser import parse_java_function_call
-from model_handler.js_parser import parse_javascript_function_call
-from model_handler.constant import GORILLA_TO_OPENAPI, USE_COHERE_OPTIMIZATION
+from bfcl.types import ModelStyle, TestLanguage, TestCategory
+from bfcl.model_handler.parser.java_parser import parse_java_function_call
+from bfcl.model_handler.parser.javascript_parser import parse_javascript_function_call
+from bfcl.model_handler.constants import GORILLA_TO_OPENAPI
 
 
-def _cast_to_openai_type(properties, mapping, test_category):
+def _cast_to_openai_type(properties, mapping):
     for key, value in properties.items():
         if "type" not in value:
             properties[key]["type"] = "string"
@@ -29,7 +29,7 @@ def _cast_to_openai_type(properties, mapping, test_category):
         if properties[key]["type"] == "array" or properties[key]["type"] == "object":
             if "properties" in properties[key]:
                 properties[key]["properties"] = _cast_to_openai_type(
-                    properties[key]["properties"], mapping, test_category
+                    properties[key]["properties"], mapping
                 )
             elif "items" in properties[key]:
                 properties[key]["items"]["type"] = mapping[
@@ -47,22 +47,22 @@ def _cast_to_openai_type(properties, mapping, test_category):
                     and "properties" in properties[key]["items"]
                 ):
                     properties[key]["items"]["properties"] = _cast_to_openai_type(
-                        properties[key]["items"]["properties"], mapping, test_category
+                        properties[key]["items"]["properties"], mapping
                     )
     return properties
 
 
 def convert_to_tool(
-    functions, mapping, model_style, test_category
+    functions, mapping, model_style
 ):
     oai_tool = []
     for item in functions:
         if "." in item["name"] and (
-            model_style == ModelStyle.OpenAI
-            or model_style == ModelStyle.Mistral
-            or model_style == ModelStyle.Google
-            or model_style == ModelStyle.OSSMODEL
-            or model_style == ModelStyle.Anthropic_FC
+            model_style == ModelStyle.OPENAI
+            or model_style == ModelStyle.MISTRAL
+            or model_style == ModelStyle.GOOGLE
+            or model_style == ModelStyle.OSS_MODEL
+            or model_style == ModelStyle.ANTHROPIC_FC
             or model_style == ModelStyle.COHERE
         ):
             # OAI does not support "." in the function name so we replace it with "_". ^[a-zA-Z0-9_-]{1,64}$ is the regex for the name.
@@ -70,13 +70,13 @@ def convert_to_tool(
             
         item["parameters"]["type"] = "object"
         item["parameters"]["properties"] = _cast_to_openai_type(
-            item["parameters"]["properties"], mapping, test_category
+            item["parameters"]["properties"], mapping
         )
 
-        if model_style == ModelStyle.Anthropic_FC:
+        if model_style == ModelStyle.ANTHROPIC_FC:
             item["input_schema"] = item["parameters"]
             del item["parameters"]
-        if model_style == ModelStyle.Google:
+        if model_style == ModelStyle.GOOGLE:
             # Remove fields that are not supported by Gemini today.
             for params in item["parameters"]["properties"].values():
                 if "default" in params:
@@ -90,78 +90,25 @@ def convert_to_tool(
                     params["description"] += "The additional properties:" +str(params["additionalProperties"])
                     del params["additionalProperties"]
         if model_style == ModelStyle.COHERE:
-            if USE_COHERE_OPTIMIZATION:
-                if "required" not in item["parameters"]:
-                    item["parameters"]["required"] = []
-                for param_name, params in item["parameters"]["properties"].items():
-                    if "description" not in params:
-                        params["description"] = ""
-
-                    if "default" in params:
-                        params["description"] += " The default value is: " + str(params["default"])
-                        if param_name not in item["parameters"]["required"]:
-                            item["parameters"]["required"].append(param_name)
-                        del params["default"]
-                    if "additionalProperties" in params:
-                        params["description"] += " Additional properties: " + str(params["additionalProperties"])
-                        del params["additionalProperties"]
-                    if "items" in params:
-                        inner_type = ""
-                        if "items" in params["items"] and "type" in params["items"]["items"]:
-                            # 2D list
-                            inner_type = params["items"]["items"]["type"]
-                            params["type"] = f"list[list[{inner_type}]]"
-                        elif "type" in params["items"]:
-                            # 1D list
-                            inner_type = params["items"]["type"]
-                            params["type"] = f"list[{inner_type}]"
-                        if "items" in params and "enum" in params["items"] and params["items"]["enum"]:
-                            params["description"] += " Possible enum values: "
-                            params["description"] += ", ".join(params["items"]["enum"])
-                            params["description"] += "."
-
-                        del params["items"]
-                    if "properties" in params:
-                        params["description"] += " Dictionary properties:"
-                        for name, property_ in params["properties"].items():
-                            property_type = property_.get("type", mapping["string"])
-                            property_description = property_.get("description", "")
-                            params["description"] += f" {name} ({property_type}): {property_description}"
-                        del params["properties"]
-                    if "enum" in params:
-                        params["description"] += " Possible enum values: " + str(params["enum"])
-                        del params["enum"]
-                    # add ranges to description
-                    if "percentage" not in params["description"]:
-                        params["description"] = params["description"].replace(
-                            "rate ", "rate (from 0.0 to 1.0) "
-                        )
-                    params["description"] = params["description"].replace(
-                        "percentage ", "percentage (from 0 to 100) "
-                    )
-                    params["description"] = params["description"].replace(
-                        "currency ", "currency (3 letter ISO code) "
-                    )
-            else:
-                for params in item["parameters"]["properties"].values():
-                    if "description" not in params:
-                        params["description"] = ""
-                    if "default" in params:
-                        params["description"] += " The default value is: " + str(params["default"])
-                        del params["default"]
-                    if "additionalProperties" in params:
-                        params["description"] += " Additional properties: " + str(params["additionalProperties"])
-                        del params["additionalProperties"]
-                    if "items" in params:
-                        params["description"] += " List Items type: " + str(params["items"])
-                        del params["items"]
-                    if "properties" in params:
-                        params["description"] += " Dictionary properties: " + str(params["properties"])
-                        del params["properties"]
+            for params in item["parameters"]["properties"].values():
+                if "description" not in params:
+                    params["description"] = ""
+                if "default" in params:
+                    params["description"] += " The default value is: " + str(params["default"])
+                    del params["default"]
+                if "additionalProperties" in params:
+                    params["description"] += " Additional properties: " + str(params["additionalProperties"])
+                    del params["additionalProperties"]
+                if "items" in params:
+                    params["description"] += " List Items type: " + str(params["items"])
+                    del params["items"]
+                if "properties" in params:
+                    params["description"] += " Dictionary properties: " + str(params["properties"])
+                    del params["properties"]
         if model_style in [
-            ModelStyle.Anthropic_Prompt,
-            ModelStyle.Google,
-            ModelStyle.OSSMODEL,
+            ModelStyle.ANTHROPIC_PROMPT,
+            ModelStyle.GOOGLE,
+            ModelStyle.OSS_MODEL,
         ]:
             oai_tool.append(item)
         elif model_style == ModelStyle.COHERE:
@@ -182,8 +129,8 @@ def convert_to_tool(
                 }
             )
         elif model_style in [
-            ModelStyle.OpenAI,
-            ModelStyle.Mistral,
+            ModelStyle.OPENAI,
+            ModelStyle.MISTRAL,
             ModelStyle.FIREWORK_AI,
         ]:
             oai_tool.append({"type": "function", "function": item})
@@ -227,19 +174,19 @@ def convert_value(value, type_str):
         return value
 
 
-def ast_parse(input_str, language="Python"):
-    if language == "Python":
+def ast_parse(input_str, language=TestLanguage.PYTHON):
+    if language == TestLanguage.PYTHON:
         parsed = ast.parse(input_str, mode="eval")
         extracted = []
         for elem in parsed.body.elts:
             assert isinstance(elem, ast.Call)
             extracted.append(resolve_ast_by_type(elem))
         return extracted
-    elif language == "Java":
+    elif language == TestLanguage.JAVA:
         return parse_java_function_call(
             input_str[1:-1]
         )  # Remove the [ and ] from the string
-    elif language == "JavaScript":
+    elif language == TestLanguage.JAVASCRIPT:
         return parse_javascript_function_call(input_str[1:-1])
     else:
         raise NotImplementedError(f"Unsupported language: {language}")
@@ -308,24 +255,24 @@ def resolve_ast_by_type(value):
     return output
 
 
-def augment_prompt_by_languge(prompt, test_category):
-    if test_category == "java":
+def augment_prompt_by_languge(prompt, test_category: TestCategory):
+    if test_category == TestCategory.JAVA:
         prompt = prompt + "\n Note that the provided function is in Java 8 SDK syntax."
-    elif test_category == "javascript":
+    elif test_category == TestCategory.JAVASCRIPT:
         prompt = prompt + "\n Note that the provided function is in JavaScript syntax."
     else:
         prompt = prompt + "\n Note that the provided function is in Python 3 syntax."
     return prompt
 
 
-def language_specific_pre_processing(function, test_category):
+def language_specific_pre_processing(function, test_category: TestCategory):
     if type(function) is dict:
         function = [function]
     if len(function) == 0:
        return function
     for item in function:
         properties = item["parameters"]["properties"]
-        if test_category == "java":
+        if test_category == TestCategory.JAVA:
             for key, value in properties.items():
                 if value["type"] == "any":
                     properties[key]["description"] += (
@@ -343,7 +290,7 @@ def language_specific_pre_processing(function, test_category):
                     
                 value["type"] = "string"
                 
-        elif test_category == "javascript":
+        elif test_category == TestCategory.JAVASCRIPT:
             for key, value in properties.items():
                 if value["type"] == "any":
                     properties[key]["description"] += (

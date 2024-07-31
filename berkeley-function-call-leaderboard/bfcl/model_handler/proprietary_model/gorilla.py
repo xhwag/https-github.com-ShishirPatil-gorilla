@@ -3,23 +3,28 @@ import time
 
 import requests
 
-from bfcl.model_handler import utils
-from bfcl.model_handler.base import BaseHandler, ModelStyle
+from bfcl.utils.handler_utils import (
+    augment_prompt_by_languge,
+    language_specific_pre_processing,
+    ast_parse,
+)
+from bfcl.model_handler.base import BaseHandler
+from bfcl.types import ModelStyle, TestLanguage
 
 
 class GorillaHandler(BaseHandler):
     model_style = ModelStyle.GORILLA
-    
+
     @classmethod
     def supported_models(cls):
         return [
-            'gorilla-openfunctions-v0',
-            'gorilla-openfunctions-v2',
+            "gorilla-openfunctions-v0",
+            "gorilla-openfunctions-v2",
         ]
 
     def inference(self, prompt, functions, test_category):
-        prompt = utils.augment_prompt_by_languge(prompt, test_category)
-        functions = utils.language_specific_pre_processing(functions, test_category, False)
+        prompt = augment_prompt_by_languge(prompt, test_category)
+        functions = language_specific_pre_processing(functions, test_category)
         if type(functions) is not list:
             functions = [functions]
         try:
@@ -31,14 +36,14 @@ class GorillaHandler(BaseHandler):
             metadata = {"input_tokens": 0, "output_tokens": 0, "latency": 0}
         return result, metadata
 
-    def decode_ast(self, result, language="python"):
+    def decode_ast(self, result, language=TestLanguage.PYTHON):
         func = "[" + result + "]"
-        decoded_output = utils.ast_parse(func, language)
+        decoded_output = ast_parse(func, language)
         return decoded_output
 
     def decode_execute(self, result):
         func = "[" + result + "]"
-        decoded_output = utils.ast_parse(func)
+        decoded_output = ast_parse(func)
         execution_list = []
         for function_call in decoded_output:
             for key, value in function_call.items():
