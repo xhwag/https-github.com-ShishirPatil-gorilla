@@ -9,7 +9,7 @@ class PostInstallCommand(install):
     def run(self):
         install.run(self)
         # Download dataset from HuggingFace post-installation FIXME
-        subprocess.call(["python", "-m", "bfcl.download_dataset"])
+        # subprocess.call(["python", "-m", "bfcl.download_dataset"])
 
 
 setup(

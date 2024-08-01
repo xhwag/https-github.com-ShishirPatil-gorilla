@@ -1,17 +1,3 @@
-import glob
-import json
-import os
-import statistics
-import subprocess
-
-import numpy as np
-from tqdm import tqdm
-from bfcl.types import TestCategory
-
-REST_API_GROUND_TRUTH_FILE_PATH = "api_status_check_ground_truth_REST.json"
-EXECTUABLE_API_GROUND_TRUTH_FILE_PATH = "api_status_check_ground_truth_executable.json"
-
-
 
 def is_function_calling_format_output(decoded_output):
     # Ensure the output is a list of dictionaries

@@ -1,7 +1,7 @@
 import os
 from enum import Enum, auto
 from bfcl.constants import DATASET_PATH, POSSIBLE_ANSWER_PATH
-from bfcl.utils import load_json_file
+from bfcl.utils.utils import load_json_file
 
 
 class ModelType(str, Enum):
