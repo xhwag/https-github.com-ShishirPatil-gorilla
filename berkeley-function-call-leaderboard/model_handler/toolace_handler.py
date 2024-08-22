@@ -1,12 +1,11 @@
 import json
 from model_handler.oss_handler import OSSHandler
 from model_handler.utils import ast_parse
-from model_handler.constant import DEFAULT_SYSTEM_PROMPT, USER_PROMPT_FOR_CHAT_MODEL
+from model_handler.constant import DEFAULT_SYSTEM_PROMPT
 from model_handler.utils import (
     ast_parse,
     system_prompt_pre_processing,
     _get_language_specific_hint,
-    user_prompt_pre_processing_chat_model,
     func_doc_language_specific_pre_processing,
 )
 
@@ -17,7 +16,7 @@ NO other text MUST be included.
 """
 
 class ToolACEHandler(OSSHandler):
-    def __init__(self, model_name, temperature=0.001, top_p=1, max_tokens=1000, dtype="float16") -> None:
+    def __init__(self, model_name, temperature=0.001, top_p=1, max_tokens=1000) -> None:
         super().__init__(model_name, temperature, top_p, max_tokens, dtype=dtype)
 
     def _format_prompt(prompts, function, test_category):
@@ -66,12 +65,10 @@ class ToolACEHandler(OSSHandler):
         format_prompt_func=_format_prompt,
         max_model_len=4096
     ):
-        num_gpus = 2
-        print(f"Num GPUS: {num_gpus}")
         return super().inference(
             test_question,
             num_gpus,
-            gpu_memory_utilization=0.8,
+            gpu_memory_utilization=gpu_memory_utilization,
             format_prompt_func=format_prompt_func,
             use_default_system_prompt=True,
             include_default_formatting_prompt=True,

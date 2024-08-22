@@ -533,9 +533,9 @@ MODEL_METADATA_MAPPING = {
         "Salesforce",
         "cc-by-nc-4.0",
     ],
-    "Team-ACE/ToolAce-8B": [
-        "ToolAce-8B (FC)",
-        "https://huggingface.co/Team-ACE/ToolAce-8B",
+    "Team-ACE/ToolACE-8B": [
+        "ToolACE-8B (FC)",
+        "https://huggingface.co/Team-ACE/ToolACE-8B",
         "Huawei Noah & USTC",
         "Apache-2.0",
     ]

@@ -97,5 +97,5 @@ handler_map = {
     "yi-large-fc": YiHandler,
     "Salesforce/xLAM-1b-fc-r": xLAMHandler,
     "Salesforce/xLAM-7b-fc-r": xLAMHandler,
-    "Team-ACE/ToolAce-8B": ToolACEHandler
+    "Team-ACE/ToolACE-8B": ToolACEHandler
 }
